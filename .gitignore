@@ -1,0 +1,15 @@
+# Ignore environment file (contains secrets)
+.env
+
+# Ignore vendor folder (dependencies can be installed via composer)
+vendor/
+
+# Ignore OS junk files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# Ignore IDE folders
+.idea/
+.vscode/

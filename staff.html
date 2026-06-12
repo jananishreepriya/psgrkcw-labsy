@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Dashboard - PSGRKCW LABSY</title>
+    <link rel="stylesheet" href="assets/css/staff.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: transparent; }
+        .modal-content { background: white; border-radius: 12px; padding: 30px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; position: relative; z-index: 2001; box-shadow: 0 25px 50px rgba(0,0,0,0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .close-modal { background: none; border: none; font-size: 24px; color: #6b7280; cursor: pointer; }
+        .help-modal .modal-content { max-width: 600px; }
+        .help-content { max-height: 70vh; overflow-y: auto; }
+        .help-content h4 { color: #6b21a8; margin: 20px 0 10px; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px; }
+        .help-content ul { margin-left: 20px; color: #374151; }
+        .help-content li { margin-bottom: 8px; }
+        .support-modal .modal-content { max-width: 500px; }
+        .support-modal textarea { min-height: 100px; }
+        .help-btn { position: fixed; bottom: 60px; left: 30px; background: #6b21a8; color: white; border: none; border-radius: 50%; width: 56px; height: 56px; font-size: 24px; cursor: pointer; box-shadow: 0 4px 15px rgba(107,33,168,0.4); transition: all 0.3s; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .help-btn:hover { transform: scale(1.1); background: #4c1d95; }
+        
+        .requests-list { display: flex; flex-direction: column; gap: 15px; }
+        .request-item { background: #f9fafb; border-radius: 12px; padding: 20px; border-left: 4px solid #6b21a8; }
+        .request-item.pending { border-left-color: #f59e0b; }
+        .request-item.resolved { border-left-color: #059669; }
+        .request-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .request-type { font-weight: 600; color: #374151; text-transform: capitalize; }
+        .request-message { color: #1f2937; margin-bottom: 12px; line-height: 1.5; }
+        .request-meta { font-size: 13px; color: #6b7280; display: flex; gap: 15px; flex-wrap: wrap; }
+        .resolved-date { color: #059669; }
+        .status-badge.status-approved { background: #d1fae5; color: #065f46; }
+        .status-badge.status-pending { background: #fef3c7; color: #92400e; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><i class="fas fa-flask"></i><span>LABSY Staff</span></div>
+        <div class="nav-links">
+            <a href="#" class="active" data-page="dashboard"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="#" data-page="timetable"><i class="fas fa-calendar-week"></i> Lab Schedule</a>
+            <a href="#" data-page="book"><i class="fas fa-plus-circle"></i> Book Lab</a>
+            <a href="#" data-page="history"><i class="fas fa-history"></i> My Bookings</a>
+            <a href="#" data-page="support-status"><i class="fas fa-ticket-alt"></i> My Requests</a>
+            <a href="public_view.php" target="_blank"><i class="fas fa-globe"></i> Public Schedule</a>
+            <a href="#" id="supportBtnNav"><i class="fas fa-headset"></i> Report Issue</a>
+        </div>
+        <div class="nav-user"><span id="userName">Loading...</span><a href="logout.php" class="logout-btn"><i class="fas fa-sign-out-alt"></i></a></div>
+    </nav>
+
+    <main class="main-content">
+        <!-- Dashboard Page -->
+        <div id="dashboard-page" class="page active">
+            <div class="welcome-bar"><div><h1>Welcome back, <span id="welcomeName">Staff</span>!</h1><p>Manage your lab bookings</p></div><div class="date-display" id="currentDate"></div></div>
+            <div id="importantNotices"></div>
+            <div class="today-card" id="todayCard">
+                <div class="today-icon"><i class="fas fa-calendar-day"></i></div>
+                <div class="today-info">
+                    <h2 id="todayDate">Loading...</h2>
+                    <div class="day-order" id="todayOrder">Loading...</div>
+                    <div class="day-type" id="todayType">Loading...</div>
+                </div>
+            </div>
+            <div class="quick-actions">
+                <div class="action-card" onclick="showPage('timetable')"><i class="fas fa-calendar-week"></i><h3>View Schedule</h3></div>
+                <div class="action-card" onclick="showPage('book')"><i class="fas fa-plus-circle"></i><h3>Book a Lab</h3></div>
+                <div class="action-card" onclick="showPage('history')"><i class="fas fa-history"></i><h3>My Bookings</h3></div>
+                <div class="action-card" onclick="window.open('public_view.php', '_blank')"><i class="fas fa-globe"></i><h3>Public Schedule</h3></div>
+            </div>
+            <div class="content-card"><div class="card-header"><h2><i class="fas fa-clock"></i> Recent Bookings</h2></div><div id="recentBookings"><div class="loading">Loading...</div></div></div>
+        </div>
+
+        <!-- Timetable Page -->
+        <div id="timetable-page" class="page">
+            <div class="page-header"><h1><i class="fas fa-calendar-week"></i> Lab Schedule & Availability</h1></div>
+            <div class="content-card">
+                <div class="timetable-filters">
+                    <select id="viewLabFilter" onchange="loadLabSchedule()"><option value="">Select Lab</option></select>
+                    <select id="viewDayFilter" onchange="loadLabSchedule()"><option value="1">Day 1</option><option value="2">Day 2</option><option value="3">Day 3</option><option value="4">Day 4</option><option value="5">Day 5</option><option value="6">Day 6</option></select>
+                </div>
+                <div id="scheduleContainer"><div class="empty-state"><i class="fas fa-calendar"></i><h3>Select a lab to view schedule</h3></div></div>
+            </div>
+        </div>
+
+        <!-- Book Lab Page -->
+        <div id="book-page" class="page">
+            <div class="page-header"><h1><i class="fas fa-plus-circle"></i> Book a Lab</h1></div>
+            <div class="form-card">
+                <div id="bookMessage"></div>
+                <form id="bookingForm">
+                    <div class="form-group"><label><i class="fas fa-door-open"></i> Select Lab <span style="color:#dc2626">*</span></label><select name="lab_id" id="labSelect" required onchange="checkLabAvailability()"><option value="">-- Choose a Lab --</option></select></div>
+                    <div class="form-group"><label><i class="fas fa-calendar"></i> Booking Date <span style="color:#dc2626">*</span></label><input type="date" name="booking_date" id="bookingDate" required onchange="updateDayInfo()"><div id="dayInfo" class="day-info-box"></div></div>
+                    <div class="form-group"><label><i class="fas fa-clock"></i> Session <span style="color:#dc2626">*</span></label>
+                        <div class="session-options">
+                            <label class="session-card"><input type="radio" name="time_slot" value="FN" required onchange="checkSlotAvailability()"><div class="session-content"><i class="fas fa-sun"></i><h4>FN</h4><p>Forenoon</p><span class="time-range">8:10 AM - 12:40 PM</span></div></label>
+                            <label class="session-card"><input type="radio" name="time_slot" value="AN" required onchange="checkSlotAvailability()"><div class="session-content"><i class="fas fa-cloud-sun"></i><h4>AN</h4><p>Afternoon</p><span class="time-range">12:50 PM - 5:20 PM</span></div></label>
+                            <label class="session-card"><input type="radio" name="time_slot" value="Full Day" required onchange="checkSlotAvailability()"><div class="session-content"><i class="fas fa-calendar-day"></i><h4>Full Day</h4><p>Complete Day</p><span class="time-range">8:10 AM - 5:20 PM</span></div></label>
+                        </div>
+                    </div>
+                    <div id="slotAvailabilityWarning" style="display:none; margin-bottom:20px;"></div>
+                    <div class="form-group"><label><i class="fas fa-comment"></i> Purpose <span style="color:#dc2626">*</span></label><textarea name="purpose" rows="3" required placeholder="Enter purpose..."></textarea></div>
+                    <div class="form-actions"><button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Submit Booking</button><button type="button" class="btn btn-secondary" onclick="showPage('dashboard')">Cancel</button></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- History Page -->
+        <div id="history-page" class="page">
+            <div class="page-header"><h1><i class="fas fa-history"></i> My Bookings</h1>
+                <div class="filters"><select id="historyFilter" onchange="loadHistory()"><option value="all">All Bookings</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+                <button class="btn btn-export pdf" onclick="exportToPDF()" style="background:#dc2626; color:white; border:none; padding:8px 15px; border-radius:6px;"><i class="fas fa-file-pdf"></i> PDF</button>
+                <button class="btn btn-export excel" onclick="exportToExcel()" style="background:#059669; color:white; border:none; padding:8px 15px; border-radius:6px;"><i class="fas fa-file-excel"></i> Excel</button></div>
+            </div>
+            <div class="content-card"><div id="historyList"><div class="loading">Loading...</div></div></div>
+        </div>
+
+        <!-- My Support Requests Page -->
+        <div id="support-status-page" class="page">
+            <div class="page-header">
+                <h1><i class="fas fa-ticket-alt"></i> My Support Requests</h1>
+                <p>Track the status of your submitted queries</p>
+            </div>
+            <div class="content-card">
+                <div id="myRequestsList"></div>
+            </div>
+        </div>
+    </main>
+
+    <div class="developer-footer">
+        <div class="footer-content">
+            <span>&copy; Developed by Janani Shree Priya M | Guide - Ponmalar S, Assistant Professor | 2023 B.Sc Computer Science</span>
+        </div>
+    </div>
+
+    <button class="help-btn" id="helpBtn"><i class="fas fa-question"></i></button>
+    <div id="helpModal" class="modal help-modal" style="display:none;">
+        <div class="modal-overlay" onclick="closeHelpModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header"><h3><i class="fas fa-question-circle"></i> Staff Help & Guidance</h3><button class="close-modal" onclick="closeHelpModal()">&times;</button></div>
+            <div class="help-content">
+                <h4>🏠 Dashboard</h4><ul><li>View today's date, academic day order, and any important notices.</li><li>Quick actions: View Schedule, Book a Lab, My Bookings, Public Schedule.</li><li>Recent bookings are shown for quick reference.</li></ul>
+                <h4>📅 Lab Schedule</h4><ul><li>Select a lab and day order to see scheduled classes and available slots.</li><li>Green buttons (Book Period X) indicate free slots – click to instantly book.</li><li>If a slot has a scheduled class, you can still request approval from admin (who may cancel class).</li></ul>
+                <h4>📝 Book a Lab (Regular)</h4><ul><li>Choose lab, date, session (FN/AN/Full Day), and purpose.</li><li>System checks availability and shows any conflicts.</li><li>If no conflict, you can submit for head approval.</li><li>If conflict exists, you can request admin approval (which may override classes or instant bookings).</li></ul>
+                <h4>⚡ Instant Booking (Period-wise)</h4><ul><li>From Lab Schedule, click any green period button.</li><li>Enter purpose – if no conflict, booking is instantly approved.</li><li>If conflict exists, request is sent to admin for approval.</li><li>You'll receive email confirmation on approval.</li></ul>
+                <h4>📜 My Bookings</h4><ul><li>View all your bookings with status (pending/approved/rejected).</li><li>Filter by status and export to PDF/Excel.</li><li>Check admin remarks if rejected.</li></ul>
+                <h4>🎫 My Support Requests</h4><ul><li>View all your submitted support queries with status (Pending/Resolved).</li><li>See when each request was resolved.</li><li>Click "Report Issue" to submit a new query to admin.</li></ul>
+                <h4>🌍 Public Schedule</h4><ul><li>View lab availability – useful for planning.</li></ul>
+                <h4>📧 Email Notifications</h4><ul><li>You'll receive email when your booking is approved or rejected.</li><li>Instant bookings send confirmation immediately.</li><li>Support request resolution also sends email.</li></ul>
+                <h4>💡 Tips</h4><ul><li>If your request is pending, you can contact your lab head for faster approval.</li><li>Click "Report Issue" to send a query to admin – you'll get email when resolved.</li></ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="supportModal" class="modal support-modal" style="display:none;">
+        <div class="modal-overlay" onclick="closeSupportModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header"><h3><i class="fas fa-envelope-open-text"></i> Report Issue / Request</h3><button class="close-modal" onclick="closeSupportModal()">&times;</button></div>
+            <form id="supportForm">
+                <div class="form-group"><label>Request Type</label><select name="request_type" required><option value="issue">Technical Issue / Bug</option><option value="question">Question / How to use</option><option value="request">Feature Request</option><option value="other">Other</option></select></div>
+                <div class="form-group"><label>Describe your issue or request *</label><textarea name="message" required placeholder="Please provide details..."></textarea></div>
+                <div id="supportMessage" class="alert" style="display:none;"></div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="assets/js/staff.js"></script>
+    <script>
+        function openHelpModal() { document.getElementById('helpModal').style.display = 'flex'; }
+        function closeHelpModal() { document.getElementById('helpModal').style.display = 'none'; }
+        document.getElementById('helpBtn')?.addEventListener('click', openHelpModal);
+        const supportBtnNav = document.getElementById('supportBtnNav');
+        const supportModal = document.getElementById('supportModal');
+        const supportForm = document.getElementById('supportForm');
+        const supportMsg = document.getElementById('supportMessage');
+        if (supportBtnNav) supportBtnNav.onclick = (e) => { e.preventDefault(); supportModal.style.display = 'flex'; };
+        function closeSupportModal() { supportModal.style.display = 'none'; if (supportForm) supportForm.reset(); if (supportMsg) supportMsg.style.display = 'none'; }
+        if (supportForm) {
+            supportForm.onsubmit = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(supportForm);
+                supportMsg.style.display = 'none';
+                const submitBtn = supportForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+                submitBtn.disabled = true;
+                try {
+                    const res = await fetch('api/submit-support.php', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (data.success) {
+                        supportMsg.className = 'alert alert-success';
+                        supportMsg.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+                        supportMsg.style.display = 'flex';
+                        supportForm.reset();
+                        setTimeout(closeSupportModal, 3000);
+                        if (typeof loadMySupportRequests === 'function' && document.getElementById('support-status-page').classList.contains('active')) {
+                            loadMySupportRequests();
+                        }
+                    } else { throw new Error(data.error || 'Submission failed'); }
+                } catch (err) {
+                    supportMsg.className = 'alert alert-error';
+                    supportMsg.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + err.message;
+                    supportMsg.style.display = 'flex';
+                } finally {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }
+            };
+        }
+    </script>
+</body>
+</html>

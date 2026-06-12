@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - PSGRKCW LABSY</title>
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* All your existing styles ... (keep as is) */
+        .quick-periods { margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px; }
+        .quick-periods label { display: block; margin-bottom: 10px; font-weight: 500; color: #374151; }
+        .quick-periods .btn-outline { background: white; border: 1px solid #6b21a8; color: #6b21a8; padding: 6px 12px; font-size: 12px; border-radius: 20px; cursor: pointer; transition: all 0.2s; }
+        .quick-periods .btn-outline:hover { background: #6b21a8; color: white; }
+        #selectedTimeDisplay { background: #d1fae5; border-left: 4px solid #059669; color: #065f46; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: none; }
+        #bookings-page th:nth-child(5) { width: 25%; }
+        #selectedTimeDisplay.show { display: block; }
+        .search-bar { margin-bottom: 15px; display: flex; gap: 10px; }
+        .search-bar input { flex: 1; padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px; }
+        .search-bar input:focus { outline: none; border-color: #6b21a8; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        
+        /* Filter bar styling */
+        .support-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+            align-items: flex-end;
+        }
+        .support-filters .filter-group {
+            flex: 1;
+            min-width: 150px;
+        }
+        .support-filters label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #374151;
+        }
+        .support-filters select, .support-filters input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        /* ENHANCED HELP BUTTON - BIGGER, PULSING, WITH TOOLTIP */
+        .help-btn {
+            position: fixed;
+            bottom: 50px;
+            right: 30px;
+            background: linear-gradient(135deg, #6b21a8, #4c1d95);
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 64px;
+            height: 64px;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(107,33,168,0.5);
+            transition: all 0.3s;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse 2s infinite;
+        }
+        .help-btn:hover {
+            transform: scale(1.15);
+            background: linear-gradient(135deg, #4c1d95, #6b21a8);
+            box-shadow: 0 12px 30px rgba(107,33,168,0.7);
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 8px 25px rgba(107,33,168,0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 15px 35px rgba(107,33,168,0.7); }
+            100% { transform: scale(1); box-shadow: 0 8px 25px rgba(107,33,168,0.5); }
+        }
+        /* Tooltip on hover */
+        .help-btn::after {
+            content: "Help & Guidance";
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            pointer-events: none;
+        }
+        .help-btn:hover::after {
+            opacity: 1;
+            visibility: visible;
+            bottom: 90px;
+        }
+        
+        .help-modal .modal-content { max-width: 700px; }
+        .help-content { max-height: 70vh; overflow-y: auto; }
+        .help-content h4 { color: #6b21a8; margin: 20px 0 10px; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px; }
+        .help-content ul { margin-left: 20px; color: #374151; }
+        .help-content li { margin-bottom: 8px; }
+        .help-content p { margin-bottom: 10px; }
+        
+        /* Rest of your existing CSS (keep everything else unchanged) */
+    </style>
+</head>
+<body>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle"><i class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon"><i class="fas fa-flask"></i></div>
+            <h2>LABSY Admin</h2>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-page="dashboard"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
+            <a href="#" class="nav-item" data-page="timetable"><i class="fas fa-calendar-week"></i><span>Timetable</span></a>
+            <a href="#" class="nav-item" data-page="blockday"><i class="fas fa-ban"></i><span>Block Day</span></a>
+            <a href="#" class="nav-item" data-page="staff"><i class="fas fa-users"></i><span>Manage Staff</span></a>
+            <a href="#" class="nav-item" data-page="heads"><i class="fas fa-chalkboard-teacher"></i><span>Manage Heads</span></a>
+            <a href="#" class="nav-item" data-page="labs"><i class="fas fa-door-open"></i><span>Manage Labs</span></a>
+            <a href="#" class="nav-item" data-page="calendar"><i class="fas fa-calendar-alt"></i><span>Academic Calendar</span></a>
+            <a href="#" class="nav-item" data-page="bookings"><i class="fas fa-book"></i><span>All Bookings</span></a>
+            <a href="#" class="nav-item" data-page="history"><i class="fas fa-history"></i><span>Booking History</span></a>
+            <a href="#" class="nav-item" data-page="support"><i class="fas fa-headset"></i><span>Support Queries</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="admin-info">
+                <div class="admin-avatar"><i class="fas fa-user-shield"></i></div>
+                <div class="admin-details"><span class="admin-name" id="adminName">Admin</span></div>
+            </div>
+            <a href="logout.php" class="logout-btn"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="pages-container">
+            <!-- Dashboard Page -->
+            <div id="dashboard-page" class="page active">
+                <header class="page-header">
+                    <div class="header-title">
+                        <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+                        <p class="header-subtitle">Welcome back! Here's what's happening today.</p>
+                    </div>
+                    <div class="date-display" id="currentDate"></div>
+                </header>
+                <div class="stats-grid">
+                    <div class="stat-card purple"><div class="stat-icon"><i class="fas fa-door-open"></i></div><div class="stat-info"><h3 id="statLabs">0</h3><p>Total Labs</p></div></div>
+                    <div class="stat-card blue"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="stat-info"><h3 id="statStaff">0</h3><p>Total Staff</p></div></div>
+                    <div class="stat-card indigo"><div class="stat-icon"><i class="fas fa-chalkboard-teacher"></i></div><div class="stat-info"><h3 id="statHeads">0</h3><p>Total Heads</p></div></div>
+                    <div class="stat-card green"><div class="stat-icon"><i class="fas fa-calendar-check"></i></div><div class="stat-info"><h3 id="statToday">0</h3><p>Today's Bookings</p></div></div>
+                    <div class="stat-card orange"><div class="stat-icon"><i class="fas fa-clock"></i></div><div class="stat-info"><h3 id="statPending">0</h3><p>Pending Approval</p></div></div>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="content-card"><div class="card-header"><h3><i class="fas fa-clock"></i> Recent Bookings</h3><button class="btn btn-sm btn-outline" onclick="showPage('bookings')">View All</button></div><div id="recentBookings"><div class="loading-spinner"><div class="spinner"></div></div></div></div>
+                    <div class="content-card"><div class="card-header"><h3><i class="fas fa-calendar-day"></i> Today's Status</h3></div><div id="todayStatus" class="today-box"><div class="loading-spinner"><div class="spinner"></div></div></div></div>
+                </div>
+            </div>
+
+            <!-- Timetable Page -->
+            <div id="timetable-page" class="page">
+                <header class="page-header"><div class="header-title"><h1><i class="fas fa-calendar-week"></i> Weekly Timetable</h1></div><div style="display: flex; gap: 10px;"><button class="btn btn-primary" onclick="showAddTimetableModal()"><i class="fas fa-plus"></i> Add Schedule</button><button class="btn btn-secondary" onclick="showBulkUploadTimetableModal()"><i class="fas fa-upload"></i> Bulk Upload Timetable</button></div></header>
+                <div class="content-card"><div class="info-banner"><i class="fas fa-info-circle"></i><span>Select period from the 10 fixed class periods (8:10 AM - 5:20 PM)</span></div><div class="timetable-filters"><select id="timetableLabFilter" onchange="loadTimetable()"><option value="">All Labs</option></select><select id="timetableDayFilter" onchange="loadTimetable()"><option value="">All Days</option><option value="1">Day 1</option><option value="2">Day 2</option><option value="3">Day 3</option><option value="4">Day 4</option><option value="5">Day 5</option><option value="6">Day 6</option></select></div><div id="timetableContainer"><div class="loading-spinner"><div class="spinner"></div></div></div></div>
+            </div>
+
+            <!-- Block Day Page -->
+            <div id="blockday-page" class="page">
+                <header class="page-header"><div class="header-title"><h1><i class="fas fa-ban"></i> Block Specific Days</h1></div></header>
+                <div class="content-card"><div id="blockMessage"></div><div class="form-grid-2"><div class="form-group"><label><i class="fas fa-calendar"></i> Select Date</label><input type="date" id="blockDate"></div><div class="form-group"><label><i class="fas fa-tag"></i> Type</label><select id="blockType"><option value="holiday">Holiday</option><option value="exam">Exam</option><option value="cultural">Cultural Event</option><option value="maintenance">Maintenance</option><option value="other">Other</option></select></div></div><div class="form-group"><label><i class="fas fa-comment"></i> Reason</label><textarea id="blockReason" rows="3" placeholder="Reason for blocking..."></textarea></div><button class="btn btn-danger" onclick="blockDay()"><i class="fas fa-ban"></i> Block This Day</button></div>
+                <div class="content-card" style="margin-top:30px;"><h3><i class="fas fa-list"></i> Currently Blocked Days</h3><div id="blockedDaysList"><div class="loading-spinner"><div class="spinner"></div></div></div></div>
+            </div>
+
+            <!-- Staff Page -->
+            <div id="staff-page" class="page">
+                <header class="page-header"><div class="header-title"><h1><i class="fas fa-users"></i> Manage Staff</h1></div><div style="display: flex; gap: 10px;"><button class="btn btn-primary" onclick="showAddStaffModal()"><i class="fas fa-plus"></i> Add Staff</button><button class="btn btn-secondary" onclick="showBulkUploadStaffModal()"><i class="fas fa-upload"></i> Bulk Upload Staff</button></div></header>
+                <div class="content-card"><div id="staffMessage"></div><div class="search-bar"><input type="text" id="staffSearch" placeholder="Search by name or email..."><button class="btn btn-sm btn-primary" onclick="filterStaff()"><i class="fas fa-search"></i> Search</button><button class="btn btn-sm btn-secondary" onclick="clearStaffSearch()"><i class="fas fa-times"></i> Clear</button></div><div class="table-responsive"><table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="staffTable"><tr><td colspan="5" class="loading-cell"><div class="loading-spinner"><div class="spinner"></div></div>None</td></tr></tbody></table></div></div>
+            </div>
+
+            <!-- Heads Page -->
+            <div id="heads-page" class="page">
+                <header class="page-header"><div class="header-title"><h1><i class="fas fa-chalkboard-teacher"></i> Manage Academic Heads</h1></div><div style="display: flex; gap: 10px;"><button class="btn btn-primary" onclick="showAddHeadModal()"><i class="fas fa-plus"></i> Add Head</button><button class="btn btn-secondary" onclick="showBulkUploadHeadsModal()"><i class="fas fa-upload"></i> Bulk Upload Heads</button></div></header>
+                <div class="content-card"><div id="headsMessage"></div><div class="search-bar"><input type="text" id="headSearch" placeholder="Search by name, email, or assigned labs..."><button class="btn btn-sm btn-primary" onclick="filterHeads()"><i class="fas fa-search"></i> Search</button><button class="btn btn-sm btn-secondary" onclick="clearHeadSearch()"><i class="fas fa-times"></i> Clear</button></div><div class="table-responsive"><table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Assigned Labs</th><th>Status</th><th>Actions</th></tr></thead><tbody id="headsTable"><tr><td colspan="5" class="loading-cell"><div class="loading-spinner"><div class="spinner"></div></div>None</td></tr></tbody></table></div></div>
+            </div>
+
+            <!-- Labs Page -->
+            <div id="labs-page" class="page">
+                <header class="page-header"><div class="header-title"><h1><i class="fas fa-door-open"></i> Manage Labs</h1></div><button class="btn btn-primary" onclick="showAddLabModal()"><i class="fas fa-plus"></i> Add Lab</button></header>
+                <div class="content-card"><div id="labMessage"></div><div class="search-bar"><input type="text" id="labSearch" placeholder="Search by lab name or description..."><button class="btn btn-sm btn-primary" onclick="filterLabs()"><i class="fas fa-search"></i> Search</button><button class="btn btn-sm btn-secondary" onclick="clearLabSearch()"><i class="fas fa-times"></i> Clear</button></div><div id="labsGrid" class="labs-grid"><div class="loading-spinner" style="grid-column:1/-1;"><div class="spinner"></div></div></div></div>
+            </div>
+
+            <!-- Calendar Page -->
+            <div id="calendar-page" class="page">
+                <header class="page-header"><div class="header-title"><h1><i class="fas fa-calendar-alt"></i> Academic Calendar</h1></div><div class="header-actions"><select id="calendarMonth" onchange="loadCalendar()"></select><select id="calendarYear" onchange="loadCalendar()"></select><button class="btn btn-primary" onclick="generateCalendar()"><i class="fas fa-sync"></i> Generate</button></div></header>
+                <div class="calendar-stats" id="calendarStats"><div class="stat-pill working">Working: 0</div><div class="stat-pill holiday">Holidays: 0</div><div class="stat-pill exam">Exams: 0</div></div>
+                <div class="content-card"><div class="calendar-grid" id="calendarGrid"></div></div>
+            </div>
+
+            <!-- All Bookings Page -->
+            <div id="bookings-page" class="page">
+                <header class="page-header"><div class="header-title"><h1><i class="fas fa-book"></i> All Bookings</h1></div><div class="header-actions"><select id="bookingFilter" onchange="loadAllBookings()"><option value="all">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div></header>
+                <div class="content-card"><div class="table-responsive"><table class="data-table"><thead><tr><th>Staff</th><th>Lab</th><th>Date</th><th>Time</th><th>Purpose</th><th>Status</th><th>Actions</th></tr></thead><tbody id="bookingsTable"><tr><td colspan="7" class="loading-cell"><div class="loading-spinner"><div class="spinner"></div> Loading...</div></td></tr></tbody></table></div></div>
+            </div>
+
+            <!-- Booking History Page -->
+            <div id="history-page" class="page">
+                <header class="page-header"><div class="header-title"><h1><i class="fas fa-history"></i> Booking History</h1></div></header>
+                <div class="content-card">
+                    <div id="historyMessage"></div>
+                    <div class="history-filters">
+                        <div class="filter-group"><label><i class="fas fa-filter"></i> Filter By</label><select id="historyFilterType" onchange="updateHistoryFilters()"><option value="all">All Bookings</option><option value="date">Specific Date</option><option value="month">Month Wise</option><option value="year">Year Wise</option><option value="staff">Staff Member</option><option value="lab">Lab</option></select></div>
+                        <div id="dateFilter" class="filter-input" style="display:none;"><label>Select Date</label><input type="date" id="filterDate"></div>
+                        <div id="monthFilter" class="filter-input" style="display:none;"><label>Select Month</label><select id="filterMonth"><option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select></div>
+                        <div id="yearFilter" class="filter-input" style="display:none;"><label>Select Year</label><select id="filterYear"></select></div>
+                        <div id="staffFilter" class="filter-input" style="display:none;"><label>Select Staff</label><select id="filterStaff"><option value="">Loading...</option></select></div>
+                        <div id="labFilter" class="filter-input" style="display:none;"><label>Select Lab</label><select id="filterLab"><option value="">Loading...</option></select></div>
+                        <button class="btn btn-primary" onclick="loadBookingHistory()"><i class="fas fa-search"></i> Search</button>
+                        <button class="btn btn-secondary" onclick="resetHistoryFilters()"><i class="fas fa-undo"></i> Reset</button>
+                    </div>
+                    <div class="export-actions"><h3><i class="fas fa-download"></i> Export Report</h3><div class="export-buttons"><button class="btn btn-export pdf" onclick="exportToPDF()"><i class="fas fa-file-pdf"></i> PDF</button><button class="btn btn-export excel" onclick="exportToExcel()"><i class="fas fa-file-excel"></i> Excel</button></div></div>
+                    <div class="history-stats" id="historyStats"><div class="stat-box"><span class="stat-number" id="totalBookings">0</span><span class="stat-label">Total</span></div><div class="stat-box approved"><span class="stat-number" id="approvedBookings">0</span><span class="stat-label">Approved</span></div><div class="stat-box pending"><span class="stat-number" id="pendingBookings">0</span><span class="stat-label">Pending</span></div><div class="stat-box rejected"><span class="stat-number" id="rejectedBookings">0</span><span class="stat-label">Rejected</span></div></div>
+                    <div class="table-responsive"><table class="data-table" id="historyTable"><thead><tr><th style="width:5%">S.No</th><th style="width:15%">Staff Name</th><th style="width:15%">Lab Name</th><th style="width:12%">Date</th><th style="width:10%">Time</th><th style="width:23%">Purpose</th><th style="width:10%">Status</th><th style="width:10%">Booked On</th></tr></thead><tbody id="historyTableBody"><tr><td colspan="8" class="empty-state">Select filters and search</td></tr></tbody></table></div>
+                    <div class="pagination" id="historyPagination"></div>
+                </div>
+            </div>
+
+            <!-- Support Queries Page -->
+            <div id="support-page" class="page">
+                <header class="page-header">
+                    <div class="header-title">
+                        <h1><i class="fas fa-headset"></i> Support Queries</h1>
+                        <p class="header-subtitle">Requests from staff, heads, and login page visitors</p>
+                    </div>
+                </header>
+                <div class="content-card">
+                    <div class="support-filters">
+                        <div class="filter-group"><label><i class="fas fa-filter"></i> Status</label><select id="supportStatusFilter"><option value="all">All</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select></div>
+                        <div class="filter-group"><label><i class="fas fa-globe"></i> Source</label><select id="supportSourceFilter"><option value="all">All Sources</option><option value="login">Login Page</option><option value="staff">Staff</option><option value="head">Head</option></select></div>
+                        <div class="filter-group"><label><i class="fas fa-calendar"></i> From Date</label><input type="date" id="supportDateFrom"></div>
+                        <div class="filter-group"><label><i class="fas fa-calendar"></i> To Date</label><input type="date" id="supportDateTo"></div>
+                        <div class="filter-group"><label><i class="fas fa-search"></i> Search</label><input type="text" id="supportSearch" placeholder="Name, email, or message..."></div>
+                        <div><button class="btn btn-primary" onclick="loadSupportQueries()"><i class="fas fa-search"></i> Filter</button><button class="btn btn-secondary" onclick="resetSupportFilters()"><i class="fas fa-undo"></i> Reset</button></div>
+                    </div>
+                    <div class="table-responsive"><table class="data-table"><thead><tr><th>ID</th><th>Name / Role</th><th>Email</th><th>Source</th><th>Type</th><th>Message</th><th>Status</th><th>Submitted</th><th>Action</th></tr></thead><tbody id="supportTable"><tr><td colspan="9" class="loading-cell">Loading...</td></tr></tbody></table></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="developer-footer">
+            <div class="footer-content"><span>&copy; Developed by Janani Shree Priya M | Guide - Ponmalar S, Assistant Professor | 2023 B.Sc Computer Science</span></div>
+        </div>
+    </main>
+
+    <!-- ENHANCED HELP MODAL (visible) -->
+    <button class="help-btn" id="adminHelpBtn" title="Help & Guidance"><i class="fas fa-question"></i></button>
+    <div id="adminHelpModal" class="modal help-modal" style="display:none;">
+        <div class="modal-overlay" onclick="closeAdminHelpModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header"><h3><i class="fas fa-question-circle"></i> Admin Help & Guidance</h3><button class="close-modal" onclick="closeAdminHelpModal()">&times;</button></div>
+            <div class="help-content">
+                <h4>📊 Dashboard</h4><ul><li>View total labs, staff, heads, today's bookings, and pending approvals.</li><li>Recent bookings and today's academic status are shown.</li></ul>
+                <h4>📅 Timetable Management</h4><ul><li>Add/Edit/Delete class schedules for each lab and day order (1-6).</li><li>Bulk upload timetable via Excel/CSV.</li><li>Timetable conflicts automatically block instant bookings.</li></ul>
+                <h4>🚫 Block Day</h4><ul><li>Mark specific dates as holiday, exam, etc. – no bookings allowed.</li><li>Affected class heads are notified automatically.</li></ul>
+                <h4>👥 Manage Staff & Heads</h4><ul><li>Add/Edit/Delete staff and academic heads.</li><li>Bulk upload via Excel/CSV (name, email, password).</li><li>Assign labs to heads.</li></ul>
+                <h4>🔬 Manage Labs</h4><ul><li>Add/Edit/Delete labs with name, description, capacity.</li></ul>
+                <h4>📆 Academic Calendar</h4><ul><li>Generate monthly calendar with automatic day order rotation.</li><li>Manually change day type (normal/holiday/exam) and day order.</li></ul>
+                <h4>📋 All Bookings & History</h4><ul><li>View all bookings, filter by status.</li><li>Approve/reject bookings (after head approval).</li><li>Export filtered history to PDF/Excel.</li></ul>
+                <h4>🛟 Support Queries</h4><ul><li>View all support requests from login page, staff, and heads.</li><li>Filter by status, source, date range, or search by name/email/message.</li><li>Click "Complete" to mark a request as resolved – the user receives an email notification.</li></ul>
+                <h4>📧 Email Notifications</h4><ul><li>Staff bookings notify heads + admin.</li><li>Head approval notifies admin.</li><li>Admin approval notifies staff.</li><li>Timetable clash notifications sent to respective HODs.</li><li>Support request resolution emails are sent to the requester.</li></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Upload Modals (same as before) -->
+    <div id="modal" class="modal"><div class="modal-overlay" onclick="closeModal()"></div><div class="modal-content" id="modalContent"></div></div>
+    <div id="bulkUploadStaffModal" class="modal" style="display:none;"><div class="modal-overlay" onclick="closeBulkModal('staff')"></div><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-upload"></i> Bulk Upload Staff</h3><button class="close-modal" onclick="closeBulkModal('staff')">&times;</button></div><div class="modal-body"><p>Upload an Excel file (.xlsx, .xls) or CSV with columns: <strong>name, email, password</strong></p><p><a href="#" onclick="downloadStaffTemplate()">Download template</a></p><form id="bulkUploadStaffForm" enctype="multipart/form-data"><div class="form-group"><input type="file" name="file" accept=".xlsx,.xls,.csv" required></div><button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload</button></form><div id="bulkUploadStaffResult" style="margin-top:15px;"></div></div></div></div>
+    <div id="bulkUploadHeadsModal" class="modal" style="display:none;"><div class="modal-overlay" onclick="closeBulkModal('heads')"></div><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-upload"></i> Bulk Upload Heads</h3><button class="close-modal" onclick="closeBulkModal('heads')">&times;</button></div><div class="modal-body"><p>Upload Excel/CSV with columns: <strong>name, email, password, labs</strong> (comma-separated lab names/IDs)</p><p><a href="#" onclick="downloadHeadsTemplate()">Download template</a></p><form id="bulkUploadHeadsForm" enctype="multipart/form-data"><div class="form-group"><input type="file" name="file" accept=".xlsx,.xls,.csv" required></div><button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload</button></form><div id="bulkUploadHeadsResult" style="margin-top:15px;"></div></div></div></div>
+    <div id="bulkUploadTimetableModal" class="modal" style="display:none;"><div class="modal-overlay" onclick="closeBulkModal('timetable')"></div><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-upload"></i> Bulk Upload Timetable</h3><button class="close-modal" onclick="closeBulkModal('timetable')">&times;</button></div><div class="modal-body"><p>Upload Excel/CSV with columns: <strong>lab, day_order, period, class_name, subject, faculty_name, head_email, semester</strong></p><p><a href="#" onclick="downloadTimetableTemplate()">Download template</a></p><form id="bulkUploadTimetableForm" enctype="multipart/form-data"><div class="form-group"><input type="file" name="file" accept=".xlsx,.xls,.csv" required></div><button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload</button></form><div id="bulkUploadTimetableResult" style="margin-top:15px;"></div></div></div></div>
+
+    <div id="toast" class="toast"><i class="fas fa-check-circle"></i><span id="toastMessage">Success!</span></div>
+
+    <script src="assets/js/admin.js"></script>
+    <script>
+        function openAdminHelpModal() { document.getElementById('adminHelpModal').style.display = 'flex'; }
+        function closeAdminHelpModal() { document.getElementById('adminHelpModal').style.display = 'none'; }
+        const helpBtn = document.getElementById('adminHelpBtn');
+        if(helpBtn) {
+            helpBtn.addEventListener('click', openAdminHelpModal);
+            console.log('✅ Help button attached and visible!');
+        } else {
+            console.error('❌ Help button not found in DOM');
+        }
+    </script>
+</body>
+</html>
