@@ -22,11 +22,11 @@ A complete lab booking system for colleges with role-based dashboards (Admin, He
 3. Copy `.env.example` to `.env` and fill in your credentials
 4. Import `psgrkcw_labsy.sql` into MySQL
 5. Start Apache/MySQL (XAMPP)
-6. Access `http://localhost/psgrkcw-labsy/login.html`
+6. Access `http://jan-psgrkcw-lab.page.gd/`
 
 ## Default Admin Login (after database import)
-- Email: admin@example.com
-- Password: admin123
+- Email: jananishreepriya.07@gmail.com
+- Password: Admin@123
 
 ## License
 Educational project – Developed by Janani Shree Priya M
